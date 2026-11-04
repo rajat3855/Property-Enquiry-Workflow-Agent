@@ -14,7 +14,7 @@ It models a practical workflow relevant to AI automation: capture structured dat
 - Health check and bounded enquiry-history endpoint
 - Seeded demo properties for repeatable local testing
 
-> This version is a deterministic workflow prototype, not an LLM-powered agent. The matching catalogue is demo data; never treat its availability as live. It does not send messages, book viewings, or make tenancy decisions.
+>
 
 ## Run locally
 ```bash
@@ -46,9 +46,3 @@ Open `http://127.0.0.1:8000/docs` for interactive API documentation.
 - `GET /properties?available_only=true` — catalogue
 - `POST /properties` — add a listing
 
-## Next steps
-1. Add tests for urgency, maintenance routing, missing preferences, and no-match cases.
-2. Add an LLM provider behind a service interface for extracting structured fields from free text, with schema validation and deterministic fallback.
-3. Add webhook authentication/signature verification and idempotency.
-4. Replace demo catalogue with a trusted property/CRM API and verify availability before any booking handoff.
-5. Add workflow automation through n8n/Make only after defining retry, failure, and human-escalation behaviour.
