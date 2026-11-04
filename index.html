@@ -1,0 +1,206 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Property AI Assistant</title>
+<style>
+body{font-family:Arial,sans-serif;background:#f3f6fc;color:#172033;margin:0}
+header{background:#172b4d;color:white;padding:20px 7%;font-size:22px;font-weight:bold}
+main{max-width:1000px;margin:30px auto;padding:0 18px}
+h1{font-size:29px}p{color:#657086;line-height:1.5}
+.layout{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.card{background:white;padding:24px;border-radius:14px;box-shadow:0 3px 14px #17203310}
+label{display:block;font-weight:bold;font-size:14px;margin:15px 0 7px}
+input,textarea,select{width:100%;box-sizing:border-box;padding:12px;border:1px solid #ccd4e2;border-radius:8px;font-size:14px}
+textarea{height:105px;resize:vertical}
+button{background:#315be8;color:white;border:0;border-radius:8px;padding:13px;font-weight:bold;cursor:pointer}
+#submit{width:100%;margin-top:18px}
+.result{background:#f5f7fb;border-radius:10px;padding:15px;overflow-wrap:anywhere}
+.property{background:white;border:1px solid #dfe5ee;padding:12px;border-radius:9px;margin-top:10px}
+.small{font-size:13px;color:#657086}
+@media(max-width:700px){.layout{grid-template-columns:1fr}main{margin:18px auto}}
+</style>
+</head>
+<body>
+<header>⌂ Property AI Assistant</header>
+<main>
+<h1>Property Enquiry Assistant</h1>
+<p>Enter a customer enquiry and let your AI-powered backend analyse it.</p>
+
+<div class="layout">
+<section class="card">
+<h2>New enquiry</h2>
+<form id="form">
+<label>Customer name *</label>
+<input id="name" required placeholder="Customer name">
+
+<label>Email</label>
+<input id="email" type="email" placeholder="Optional">
+
+<label>Customer message *</label>
+<textarea id="message" required placeholder="I need a two-bedroom flat in Park View for £1200 per month"></textarea>
+
+<label>Monthly budget (£)</label>
+<input id="budget" type="number" min="0" placeholder="1200">
+
+<label>Preferred area</label>
+<input id="area" placeholder="Park View">
+
+<label>Bedrooms</label>
+<select id="bedrooms">
+<option value="">Not specified</option>
+<option value="0">Studio</option>
+<option value="1">1 bedroom</option>
+<option value="2">2 bedrooms</option>
+<option value="3">3 bedrooms</option>
+<option value="4">4 bedrooms</option>
+</select>
+
+<button id="submit">Analyse Enquiry</button>
+<p id="status" class="small">Ready to process an enquiry.</p>
+</form>
+</section>
+
+<section class="card">
+<h2>Analysis result</h2>
+<div id="result" class="result">
+Your AI results will appear here after submission.
+</div>
+</section>
+</div>
+
+<section class="card" style="margin-top:20px">
+<h2>Recent enquiries</h2>
+<button type="button" id="refresh">Refresh enquiries</button>
+<div id="recent" style="margin-top:15px">Loading...</div>
+</section>
+</main>
+
+<script>
+const form = document.getElementById("form");
+const statusBox = document.getElementById("status");
+const resultBox = document.getElementById("result");
+const submitButton = document.getElementById("submit");
+
+function show(value) {
+    return String(value ?? "Not specified").replace(
+        /[&<>"']/g,
+        c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])
+    );
+}
+
+function money(value) {
+    return value == null ? "Not specified" :
+        "£" + Number(value).toLocaleString("en-GB");
+}
+
+form.addEventListener("submit", async function(event) {
+    event.preventDefault();
+    submitButton.disabled = true;
+    submitButton.textContent = "Analysing...";
+    statusBox.textContent = "AI is processing your enquiry. Please wait.";
+
+    const budget = document.getElementById("budget").value;
+    const bedrooms = document.getElementById("bedrooms").value;
+
+    const payload = {
+        name: document.getElementById("name").value.trim(),
+        email: document.getElementById("email").value.trim() || null,
+        message: document.getElementById("message").value.trim(),
+        budget_gbp: budget === "" ? null : Number(budget),
+        preferred_area: document.getElementById("area").value.trim() || null,
+        bedrooms: bedrooms === "" ? null : Number(bedrooms),
+        source: "property_ai_frontend"
+    };
+
+    try {
+        const response = await fetch("/enquiries", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.detail || "Request failed");
+        }
+
+        const summary = data.summary;
+        const properties = summary.matching_properties || [];
+
+        resultBox.innerHTML = `
+            <h3>Enquiry #${show(data.enquiry_id)}</h3>
+            <p><b>Category:</b> ${show(data.category)}</p>
+            <p><b>Priority:</b> ${show(data.priority)}</p>
+            <p><b>Status:</b> ${show(data.status)}</p>
+            <p><b>Location:</b> ${show(summary.preferred_area)}</p>
+            <p><b>Bedrooms:</b> ${show(summary.bedrooms)}</p>
+            <p><b>Budget:</b> ${money(summary.budget_gbp)}</p>
+            <h3>Matching properties</h3>
+            ${properties.length ? properties.map(p => `
+                <div class="property">
+                    <b>${show(p.title)}</b>
+                    <p>${show(p.area)} · ${show(p.bedrooms)} bedroom(s)</p>
+                    <b>${money(p.monthly_rent_gbp)} / month</b>
+                </div>
+            `).join("") : "<p>No matching demo properties found.</p>"}
+            
+                <div class="property" style="margin-top:16px">
+                <h3>🤖 Agent Activity</h3>
+
+                <p><b>Selected tool:</b>
+                    ${show(summary.selected_tool || "Not recorded")}
+                </p>
+
+                <p><b>Decision:</b>
+                    ${show(summary.agent_reason || "No explanation returned")}
+                </p>
+
+                <p><b>Properties returned:</b>
+                    ${properties.length}
+                </p>
+                </div>
+
+                <p class="small">
+                Demo listings only. Verify availability before making offers.
+                </p>`;
+
+        statusBox.textContent = "Enquiry processed and saved.";
+        await loadRecent();
+
+    } catch (error) {
+        resultBox.textContent = "Error: " + error.message;
+        statusBox.textContent =
+            "Check that FastAPI and Ollama are running.";
+    } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = "Analyse Enquiry";
+    }
+});
+
+async function loadRecent() {
+    const recent = document.getElementById("recent");
+    try {
+        const response = await fetch("/enquiries?limit=10");
+        if (!response.ok) throw new Error("Could not load enquiries");
+        const items = await response.json();
+
+        recent.innerHTML = items.length ? items.map(item => `
+            <div class="property">
+                <b>${show(item.name)} · #${show(item.id)}</b>
+                <p>${show(item.category)} · ${show(item.status)}</p>
+            </div>
+        `).join("") : "<p>No enquiries saved yet.</p>";
+
+    } catch (error) {
+        recent.textContent = "Could not load enquiries. Check the server.";
+    }
+}
+
+document.getElementById("refresh").addEventListener("click", loadRecent);
+loadRecent();
+</script>
+</body>
+</html>
